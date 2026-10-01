@@ -31,29 +31,30 @@ def scan_qr():
             return jsonify({"status": "error", "message": error}), 400
 
         source = data.get('source') or ''
-        if source == 'client':
-            result = model.ejecutar("process_scan_for_client", qr, session.get('user_cedula'))
-        elif _is_employee():
+        is_emp = _is_employee()
+        if is_emp and source != 'client':
             result = model.ejecutar("process_scan_for_employee", qr)
-        elif session.get('user_tipo') == 'cliente':
+        elif session.get('user_tipo') == 'cliente' or source == 'client':
             result = model.ejecutar("process_scan_for_client", qr, session.get('user_cedula'))
+        elif is_emp:
+            result = model.ejecutar("process_scan_for_employee", qr)
         else:
             return jsonify({"status": "error", "message": "Tipo de usuario no permitido"}), 403
 
-
-
-
+        qr_id = qr.get('id') or qr.get('id_qr_code')
         return jsonify({
             "status": "success",
             "message": result.get('message', 'QR procesado'),
             "data": {
-                "qr_id": qr['id'],
+                "qr_id": qr_id,
                 "qr_tipo": qr.get('tipo'),
                 "qr_utilidad": qr.get('utilidad'),
                 **result
             }
         })
     except Exception as e:
+        import traceback
+        traceback.print_exc()
         return jsonify({"status": "error", "message": "No se pudo completar la solicitud."}), 500
 
 

@@ -67,11 +67,12 @@ async function processScan(rawOverride = null) {
     scanLocked = true;
 
     try {
+        const source = isEmployee() ? 'employee' : 'client';
         const res = await fetch('/api/scanner/scan', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             credentials: 'same-origin',
-            body: JSON.stringify({ raw, source: 'client' })
+            body: JSON.stringify({ raw, source })
         });
         const data = await res.json();
 
@@ -107,6 +108,18 @@ function renderScanResult(data) {
     if (!card || !body) return;
 
     card.style.display = '';
+
+    if (data.mode === 'promocion_info') {
+        const promo = data.promocion || {};
+        body.innerHTML = `
+            <div class="alert alert-success mb-0">
+                <h6 class="fw-bold mb-2"><i class="bi bi-gift me-2"></i>${escapeHtml(promo.nombre || 'Promoción')}</h6>
+                <p class="mb-1">Puntos requeridos: <strong>${promo.puntos_requeridos || 0}</strong></p>
+                <p class="mb-0">Recompensa: <strong>${escapeHtml(promo.recompensa || 'Sin recompensa')}</strong></p>
+            </div>
+        `;
+        return;
+    }
 
     if (data.mode === 'factura_validada') {
         body.innerHTML = renderOrderBlock(data.order, 'Factura validada correctamente');

@@ -34,6 +34,8 @@ class ScannerModel(Connection):
             return None
 
     def _save_content(self, qr_id, content):
+        if isinstance(qr_id, dict):
+            qr_id = qr_id.get('id') or qr_id.get('id_qr_code')
         self.update("transalca", "UPDATE qr_codes SET contenido = %s WHERE id_qr_code = %s",
             (json.dumps(content, ensure_ascii=False), qr_id))
 
@@ -44,6 +46,7 @@ class ScannerModel(Connection):
         expires_at = self._parse_datetime(content.get('expires_at'))
         state = (content.get('estado') or '').strip().lower()
         now = datetime.now(expires_at.tzinfo) if expires_at and getattr(expires_at, 'tzinfo', None) else datetime.now()
+        qr_id = qr.get('id') or qr.get('id_qr_code')
 
         if not utility or utility in ('info', 'sin_utilidad', 'none'):
             return {
@@ -64,7 +67,7 @@ class ScannerModel(Connection):
         if expires_at and now > expires_at:
             content['estado'] = 'expirada'
             content['expired_at'] = now.isoformat(timespec='seconds')
-            self._save_content(qr['id'], content)
+            self._save_content(qr_id, content)
             return {
                 'active': False,
                 'message': 'Este QR ya no esta disponible (tiempo agotado).',
@@ -75,7 +78,7 @@ class ScannerModel(Connection):
         if assigned_at and not expires_at and now > assigned_at + timedelta(minutes=10):
             content['estado'] = 'expirada'
             content['expired_at'] = now.isoformat(timespec='seconds')
-            self._save_content(qr['id'], content)
+            self._save_content(qr_id, content)
             return {
                 'active': False,
                 'message': 'Este QR ya no esta disponible (tiempo agotado).',
@@ -85,7 +88,7 @@ class ScannerModel(Connection):
 
         if content.get('estado') != 'activa':
             content['estado'] = 'activa'
-            self._save_content(qr['id'], content)
+            self._save_content(qr_id, content)
 
         return {
             'active': True,
@@ -101,12 +104,14 @@ class ScannerModel(Connection):
         content = self._parse_content(qr.get('contenido'))
         content['estado'] = 'cumplida'
         content['fulfilled_at'] = datetime.now().isoformat(timespec='seconds')
-        self._save_content(qr['id'], content)
-
-
+        qr_id = qr.get('id') or qr.get('id_qr_code')
+        self._save_content(qr_id, content)
 
     def _get_active_qr_by_id(self, qr_id):
-        return self.fetch_one("transalca", "SELECT q.*, CASE q.tipo_qr_code WHEN 1 THEN 'pago' WHEN 2 THEN 'promocion' WHEN 3 THEN 'servicio' ELSE 'info' END AS tipo, q.referencia_qr_code AS referencia_id FROM qr_codes q WHERE q.id_qr_code = %s AND q.estado = 1", (qr_id,))
+        row = self.fetch_one("transalca", "SELECT q.*, q.id_qr_code AS id, CASE q.tipo_qr_code WHEN 1 THEN 'pago' WHEN 2 THEN 'promocion' WHEN 3 THEN 'servicio' ELSE 'info' END AS tipo, q.referencia_qr_code AS referencia_id FROM qr_codes q WHERE q.id_qr_code = %s AND q.estado = 1", (qr_id,))
+        if row and 'id' not in row:
+            row['id'] = row.get('id_qr_code')
+        return row
 
     def _resolve_qr_from_raw(self, raw_text):
         raw = (raw_text or '').strip()
@@ -190,11 +195,11 @@ class ScannerModel(Connection):
         columns = self._qr_columns()
         if "orden_venta_id" in columns:
             existing = self.fetch_one("transalca",
-                "SELECT q.*, CASE q.tipo_qr_code WHEN 1 THEN 'pago' WHEN 2 THEN 'promocion' WHEN 3 THEN 'servicio' ELSE 'info' END AS tipo, q.referencia_qr_code AS referencia_id FROM qr_codes q WHERE (q.orden_venta_id = %s OR q.referencia_qr_code = %s) AND q.utilidad = 'factura' AND q.estado = 1 ORDER BY q.id_qr_code DESC LIMIT 1",
+                "SELECT q.*, q.id_qr_code AS id, CASE q.tipo_qr_code WHEN 1 THEN 'pago' WHEN 2 THEN 'promocion' WHEN 3 THEN 'servicio' ELSE 'info' END AS tipo, q.referencia_qr_code AS referencia_id FROM qr_codes q WHERE (q.orden_venta_id = %s OR q.referencia_qr_code = %s) AND q.utilidad = 'factura' AND q.estado = 1 ORDER BY q.id_qr_code DESC LIMIT 1",
                 (order_id, order_id))
         else:
             existing = self.fetch_one("transalca",
-                "SELECT q.*, CASE q.tipo_qr_code WHEN 1 THEN 'pago' WHEN 2 THEN 'promocion' WHEN 3 THEN 'servicio' ELSE 'info' END AS tipo, q.referencia_qr_code AS referencia_id FROM qr_codes q WHERE q.referencia_qr_code = %s AND q.utilidad = 'factura' AND q.estado = 1 ORDER BY q.id_qr_code DESC LIMIT 1",
+                "SELECT q.*, q.id_qr_code AS id, CASE q.tipo_qr_code WHEN 1 THEN 'pago' WHEN 2 THEN 'promocion' WHEN 3 THEN 'servicio' ELSE 'info' END AS tipo, q.referencia_qr_code AS referencia_id FROM qr_codes q WHERE q.referencia_qr_code = %s AND q.utilidad = 'factura' AND q.estado = 1 ORDER BY q.id_qr_code DESC LIMIT 1",
                 (order_id,))
         if existing:
             return existing
@@ -213,10 +218,10 @@ class ScannerModel(Connection):
         except Exception:
             if "orden_venta_id" in columns:
                 return self.fetch_one("transalca",
-                    "SELECT q.*, CASE q.tipo_qr_code WHEN 1 THEN 'pago' WHEN 2 THEN 'promocion' WHEN 3 THEN 'servicio' ELSE 'info' END AS tipo, q.referencia_qr_code AS referencia_id FROM qr_codes q WHERE (q.orden_venta_id = %s OR q.referencia_qr_code = %s) AND q.utilidad = 'factura' AND q.estado = 1 ORDER BY q.id_qr_code DESC LIMIT 1",
+                    "SELECT q.*, q.id_qr_code AS id, CASE q.tipo_qr_code WHEN 1 THEN 'pago' WHEN 2 THEN 'promocion' WHEN 3 THEN 'servicio' ELSE 'info' END AS tipo, q.referencia_qr_code AS referencia_id FROM qr_codes q WHERE (q.orden_venta_id = %s OR q.referencia_qr_code = %s) AND q.utilidad = 'factura' AND q.estado = 1 ORDER BY q.id_qr_code DESC LIMIT 1",
                     (order_id, order_id))
             return self.fetch_one("transalca",
-                "SELECT q.*, CASE q.tipo_qr_code WHEN 1 THEN 'pago' WHEN 2 THEN 'promocion' WHEN 3 THEN 'servicio' ELSE 'info' END AS tipo, q.referencia_qr_code AS referencia_id FROM qr_codes q WHERE q.referencia_qr_code = %s AND q.utilidad = 'factura' AND q.estado = 1 ORDER BY q.id_qr_code DESC LIMIT 1",
+                "SELECT q.*, q.id_qr_code AS id, CASE q.tipo_qr_code WHEN 1 THEN 'pago' WHEN 2 THEN 'promocion' WHEN 3 THEN 'servicio' ELSE 'info' END AS tipo, q.referencia_qr_code AS referencia_id FROM qr_codes q WHERE q.referencia_qr_code = %s AND q.utilidad = 'factura' AND q.estado = 1 ORDER BY q.id_qr_code DESC LIMIT 1",
                 (order_id,))
 
         return self._get_active_qr_by_id(qr_id)
@@ -355,7 +360,7 @@ class ScannerModel(Connection):
                 return {
                     'mode': 'validar_pago_redirect',
                     'message': 'Redirigiendo a sus pedidos para validación',
-                    'qr_id': qr['id']
+                    'qr_id': qr.get('id') or qr.get('id_qr_code')
                 }
 
         if utility in ('validar_pago', 'factura', 'pago') or content.get('kind') == 'factura':

@@ -1715,7 +1715,7 @@ DELIMITER ;;
 /*!50003 CREATE*/ /*!50017 DEFINER=`root`@`localhost`*/ /*!50003 TRIGGER `trg_auto_canje_tarjeta` BEFORE UPDATE ON tarjeta_fidelidad FOR EACH ROW BEGIN
     DECLARE v_puntos_req INT DEFAULT 0;
     IF NEW.canjeada = 0 THEN
-        SELECT puntos_requeridos INTO v_puntos_req FROM promociones WHERE id = NEW.promocion_id LIMIT 1;
+        SELECT puntos_requeridos INTO v_puntos_req FROM promociones WHERE id_promocion = NEW.promocion_id LIMIT 1;
         IF NEW.puntos_acumulados >= v_puntos_req THEN
             SET NEW.canjeada = 1;
         END IF;

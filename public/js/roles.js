@@ -15,7 +15,7 @@ const MODULE_LABELS = {
     promociones: 'G. Promociones',
     ordenes: 'R. Orden de Venta',
     pagos: 'G. Pagos',
-    bitacora: 'G. Bitácora',
+    bitacora: 'L. Bitácora',
     reportes: 'Reportes',
     respaldos: 'G. Respaldos',
     qr: 'G. Códigos QR',

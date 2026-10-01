@@ -1406,7 +1406,10 @@ a:hover {
 }
 
 .form-control.is-invalid~.invalid-feedback,
-.form-select.is-invalid~.invalid-feedback {
+.form-select.is-invalid~.invalid-feedback,
+.input-group:has(.form-control.is-invalid) ~ .invalid-feedback,
+.input-group:has(.form-select.is-invalid) ~ .invalid-feedback,
+.input-group:has(.is-invalid) ~ .invalid-feedback {
     display: block;
 }
 
@@ -2053,6 +2056,11 @@ a:hover {
     transition: box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
+.auth-password-group .invalid-feedback,
+.input-group:has(.auth-password-toggle) .invalid-feedback {
+    display: none !important;
+}
+
 .auth-password-group .input-group-text,
 .input-group:has(.auth-password-toggle) .input-group-text {
     border-right: none !important;
@@ -2064,6 +2072,9 @@ a:hover {
 
 .auth-password-group .form-control,
 .input-group:has(.auth-password-toggle) .form-control {
+    flex: 1 1 auto;
+    width: 1%;
+    min-width: 0;
     border-right: none !important;
     background-image: none !important;
     background-color: #F8FAFC;
@@ -2370,8 +2381,13 @@ input[type="password"]::-ms-clear {
     padding-bottom: 10px;
 }
 
-.compact-filter-card .select2-container {
-    flex: 0 0 auto;
+.compact-filter-card .select2-container,
+.filter-bar .select2-container,
+#filterEstado + .select2-container {
+    flex: 0 1 190px !important;
+    width: 190px !important;
+    max-width: 190px !important;
+    min-width: 140px;
 }
 
 .chart-type-select,
@@ -2448,6 +2464,14 @@ input[type="password"]::-ms-clear {
     .filter-bar .form-select,
     .filter-bar .form-control {
         max-width: 100%;
+    }
+
+    .filter-bar .select2-container,
+    .compact-filter-card .select2-container,
+    #filterEstado + .select2-container {
+        flex: 1 1 100% !important;
+        width: 100% !important;
+        max-width: 100% !important;
     }
 
     .stat-card {

@@ -4,6 +4,7 @@ from model.promotion_model import PromotionModel
 
 from config.validation import ValidationError, optional_text
 import os
+import time
 from werkzeug.utils import secure_filename
 
 promotion_bp = Blueprint('promotions', __name__)
@@ -11,6 +12,37 @@ model = PromotionModel()
 
 UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'public', 'assets', 'images')
 ALLOWED_IMAGE_EXTENSIONS = {'png', 'jpg', 'jpeg', 'webp'}
+
+
+def _delete_old_image(old_filename):
+    if old_filename and old_filename not in ('default_card.png', 'no-image.png', ''):
+        old_path = os.path.join(UPLOAD_FOLDER, old_filename)
+        if os.path.exists(old_path):
+            try:
+                os.remove(old_path)
+            except OSError:
+                pass
+
+
+def _save_image(file, promo_id):
+    if not file or file.filename == '':
+        return None, None
+    ext = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else ''
+    if ext not in ALLOWED_IMAGE_EXTENSIONS:
+        return None, "Solo se permiten imagenes png, jpg, jpeg o webp."
+    if file.mimetype not in {'image/png', 'image/jpeg', 'image/webp', 'image/jpg'}:
+        return None, "El archivo no es una imagen valida."
+    file.seek(0, os.SEEK_END)
+    size = file.tell()
+    file.seek(0)
+    if size > 2 * 1024 * 1024:
+        return None, "La imagen no debe superar los 2MB."
+    safe_name = secure_filename(file.filename)
+    filename = f"promo_{promo_id}_{int(time.time())}_{safe_name}"
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+    filepath = os.path.join(UPLOAD_FOLDER, filename)
+    file.save(filepath)
+    return filename, None
 
 
 def _require_employee():
@@ -81,7 +113,32 @@ def create():
         auth_error = _require_employee()
         if auth_error:
             return auth_error
-        promo_id = model.ejecutar("create", request.get_json() or {})
+        if request.is_json:
+            raw = request.get_json() or {}
+        else:
+            raw = request.form.to_dict()
+
+        imagen_file = request.files.get('imagen') or request.files.get('image')
+        filename = None
+        if imagen_file and imagen_file.filename != '':
+            filename, img_err = _save_image(imagen_file, 'new')
+            if img_err:
+                return jsonify({"status": "error", "message": img_err, "errors": {"imagen": img_err}}), 400
+            raw['imagen_tarjeta'] = filename
+
+        promo_id = model.ejecutar("create", raw)
+
+        if filename and promo_id:
+            final_filename = f"promo_{promo_id}_{filename.split('_', 2)[-1]}"
+            old_p = os.path.join(UPLOAD_FOLDER, filename)
+            new_p = os.path.join(UPLOAD_FOLDER, final_filename)
+            if os.path.exists(old_p):
+                try:
+                    os.rename(old_p, new_p)
+                    model.ejecutar("update_image", promo_id, final_filename)
+                except OSError:
+                    pass
+
         return jsonify({"status": "success", "message": "Promocion registrada correctamente.", "id": promo_id})
     except ValidationError as e:
         return jsonify({"status": "error", "message": e.message, "errors": e.errors}), 400
@@ -89,33 +146,36 @@ def create():
         return jsonify({"status": "error", "message": "No se pudo registrar la promocion."}), 500
 
 
-@promotion_bp.route('/<int:promo_id>', methods=['PUT'])
+@promotion_bp.route('/<int:promo_id>', methods=['PUT', 'POST'])
 def update(promo_id):
     try:
         auth_error = _require_employee()
         if auth_error:
             return auth_error
-        model.ejecutar("update_promotion", promo_id, request.get_json() or {})
+        existing = model.ejecutar("get_by_id", promo_id)
+        if not existing:
+            return jsonify({"status": "error", "message": "Promocion no encontrada."}), 404
+
+        if request.is_json:
+            raw = request.get_json() or {}
+        else:
+            raw = request.form.to_dict()
+
+        imagen_file = request.files.get('imagen') or request.files.get('image')
+        if imagen_file and imagen_file.filename != '':
+            filename, img_err = _save_image(imagen_file, promo_id)
+            if img_err:
+                return jsonify({"status": "error", "message": img_err, "errors": {"imagen": img_err}}), 400
+            raw['imagen_tarjeta'] = filename
+            _delete_old_image(existing.get('imagen_tarjeta'))
+            model.ejecutar("update_image", promo_id, filename)
+
+        model.ejecutar("update_promotion", promo_id, raw)
         return jsonify({"status": "success", "message": "Promocion modificada correctamente."})
     except ValidationError as e:
         return jsonify({"status": "error", "message": e.message, "errors": e.errors}), 400
     except Exception:
         return jsonify({"status": "error", "message": "No se pudo modificar la promocion."}), 500
-
-
-@promotion_bp.route('/<int:promo_id>', methods=['DELETE'])
-def delete(promo_id):
-    try:
-        auth_error = _require_employee()
-        if auth_error:
-            return auth_error
-        new_estado = model.ejecutar("soft_delete", promo_id)
-        if new_estado is None:
-            return jsonify({"status": "error", "message": "Promocion no encontrada."}), 404
-
-        return jsonify({"status": "success", "message": "Promocion eliminada correctamente.", "estado": new_estado})
-    except Exception:
-        return jsonify({"status": "error", "message": "No se pudo cambiar el estado de la promocion."}), 500
 
 
 @promotion_bp.route('/<int:promo_id>/image', methods=['POST'])
@@ -124,19 +184,16 @@ def upload_image(promo_id):
         auth_error = _require_employee()
         if auth_error:
             return auth_error
-        if not model.ejecutar("get_by_id", promo_id):
+        existing = model.ejecutar("get_by_id", promo_id)
+        if not existing:
             return jsonify({"status": "error", "message": "Promocion no encontrada."}), 404
-        if 'image' not in request.files:
+        file = request.files.get('image') or request.files.get('imagen')
+        if not file or not file.filename:
             return jsonify({"status": "error", "message": "No se envio archivo."}), 400
-        file = request.files['image']
-        if not file.filename:
-            return jsonify({"status": "error", "message": "Archivo vacio."}), 400
-        ext = file.filename.rsplit('.', 1)[-1].lower() if '.' in file.filename else ''
-        if ext not in ALLOWED_IMAGE_EXTENSIONS or file.mimetype not in {'image/png', 'image/jpeg', 'image/webp'}:
-            return jsonify({"status": "error", "message": "El archivo debe ser una imagen png, jpg, jpeg o webp."}), 400
-        filename = secure_filename(f"promo_{promo_id}_{file.filename}")
-        os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-        file.save(os.path.join(UPLOAD_FOLDER, filename))
+        filename, img_err = _save_image(file, promo_id)
+        if img_err:
+            return jsonify({"status": "error", "message": img_err}), 400
+        _delete_old_image(existing.get('imagen_tarjeta'))
         model.ejecutar("update_image", promo_id, filename)
         return jsonify({"status": "success", "message": "Imagen modificada correctamente.", "filename": filename})
     except Exception:

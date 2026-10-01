@@ -64,14 +64,35 @@ function cssEscapeValue(value) {
 }
 
 function getFieldFeedback(el) {
-    let feedback = el?.nextElementSibling;
+    if (!el) return null;
+    const inputGroup = el.closest('.input-group');
+    if (inputGroup) {
+        if (inputGroup.classList.contains('auth-password-group') || inputGroup.querySelector('.auth-password-toggle')) {
+            const insideFb = inputGroup.querySelector('.invalid-feedback');
+            if (insideFb) insideFb.remove();
+        }
+        let feedback = inputGroup.nextElementSibling;
+        while (feedback && !feedback.classList.contains('invalid-feedback')) {
+            feedback = feedback.nextElementSibling;
+        }
+        if (!feedback && inputGroup.parentNode) {
+            feedback = inputGroup.parentNode.querySelector(':scope > .invalid-feedback') || inputGroup.parentNode.querySelector('.invalid-feedback');
+        }
+        if (!feedback && inputGroup.parentNode) {
+            feedback = document.createElement('div');
+            feedback.className = 'invalid-feedback';
+            inputGroup.insertAdjacentElement('afterend', feedback);
+        }
+        return feedback;
+    }
+    let feedback = el.nextElementSibling;
     while (feedback && !feedback.classList.contains('invalid-feedback')) {
         feedback = feedback.nextElementSibling;
     }
-    if (!feedback && el?.parentNode) {
-        feedback = el.parentNode.querySelector('.invalid-feedback');
+    if (!feedback && el.parentNode) {
+        feedback = el.parentNode.querySelector(':scope > .invalid-feedback') || el.parentNode.querySelector('.invalid-feedback');
     }
-    if (!feedback && el?.parentNode) {
+    if (!feedback && el.parentNode) {
         feedback = document.createElement('div');
         feedback.className = 'invalid-feedback';
         el.parentNode.appendChild(feedback);
@@ -192,7 +213,13 @@ function maintenanceSidebarHtml(user) {
     html += '</div>';
     return html;
 }
-const SIDEBAR_GROUP_ORDER = ['Principal', 'Gestión', 'Servicios', 'Ventas', 'Sistema', 'Análisis'];
+function getSidebarSortKey(titulo) {
+    return (titulo || '')
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .trim();
+}
 
 async function renderDynamicSidebar() {
     const sidebar = document.getElementById('adminSidebar');
@@ -206,24 +233,30 @@ async function renderDynamicSidebar() {
         const mods = (res && res.data) || [];
         const maintenanceHtml = maintenanceSidebarHtml(user);
         if (!mods.length && !maintenanceHtml) { sidebarRenderInFlight = false; return; }
-        const groups = {};
-        mods.forEach(m => { (groups[m.grupo] = groups[m.grupo] || []).push(m); });
-        const orderedGroups = Object.keys(groups).sort((a, b) => {
-            const ia = SIDEBAR_GROUP_ORDER.indexOf(a), ib = SIDEBAR_GROUP_ORDER.indexOf(b);
-            return (ia === -1 ? 99 : ia) - (ib === -1 ? 99 : ib);
+
+        const dashboardMod = mods.find(m => (m.nombre || '').toLowerCase() === 'dashboard' || (m.ruta || '').endsWith('/dashboard'));
+        const otherMods = mods.filter(m => m !== dashboardMod);
+        otherMods.sort((a, b) => {
+            const ta = getSidebarSortKey(a.titulo || a.nombre);
+            const tb = getSidebarSortKey(b.titulo || b.nombre);
+            return ta.localeCompare(tb, 'es', { sensitivity: 'base' });
         });
+
         let html = '';
+        if (dashboardMod) {
+            const page = (dashboardMod.ruta || '').split('/').pop();
+            html += `<a href="${escapeHtml(dashboardMod.ruta)}" class="nav-link" data-page="${escapeHtml(page)}"><i class="${escapeHtml(dashboardMod.icono || 'bi bi-grid-1x2-fill')}"></i> ${escapeHtml(dashboardMod.titulo)}</a>`;
+        }
+
         let maintenanceInserted = false;
-        orderedGroups.forEach(group => {
-            html += `<div class="nav-section">${escapeHtml(group)}</div>`;
-            groups[group].sort((a, b) => (a.orden || 0) - (b.orden || 0)).forEach(m => {
-                const page = (m.ruta || '').split('/').pop();
-                html += `<a href="${escapeHtml(m.ruta)}" class="nav-link" data-page="${escapeHtml(page)}"><i class="${escapeHtml(m.icono || 'bi bi-app')}"></i> ${escapeHtml(m.titulo)}</a>`;
-                if (m.nombre === 'respaldos') {
-                    html += maintenanceHtml;
-                    maintenanceInserted = true;
-                }
-            });
+        otherMods.forEach(m => {
+            const sortKey = getSidebarSortKey(m.titulo || m.nombre);
+            if (!maintenanceInserted && maintenanceHtml && sortKey.localeCompare('mantenimiento', 'es', { sensitivity: 'base' }) > 0) {
+                html += maintenanceHtml;
+                maintenanceInserted = true;
+            }
+            const page = (m.ruta || '').split('/').pop();
+            html += `<a href="${escapeHtml(m.ruta)}" class="nav-link" data-page="${escapeHtml(page)}"><i class="${escapeHtml(m.icono || 'bi bi-app')}"></i> ${escapeHtml(m.titulo)}</a>`;
         });
         if (maintenanceHtml && !maintenanceInserted) {
             html += maintenanceHtml;

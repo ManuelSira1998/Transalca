@@ -121,6 +121,13 @@ class PromotionModel(Connection):
 
     def _apply_update(self, promo_id, clean):
         self._apply_save(clean)
+        if clean.get('imagen_tarjeta'):
+            return self.update("transalca",
+                "UPDATE promociones SET nombre_promocion = %s, descripcion_promocion = %s, tipo_promocion = %s, puntos_requeridos = %s, recompensa_promocion = %s, imagen_tarjeta = %s, fecha_inicio_promocion = %s, fecha_fin_promocion = %s WHERE id_promocion = %s",
+                (self._nombre, self._descripcion, clean.get('tipo', 'puntos'),
+                 clean.get('puntos_requeridos', 3), self._recompensa,
+                 clean['imagen_tarjeta'],
+                 self._fecha_inicio, self._fecha_fin, promo_id))
         return self.update("transalca",
             "UPDATE promociones SET nombre_promocion = %s, descripcion_promocion = %s, tipo_promocion = %s, puntos_requeridos = %s, recompensa_promocion = %s, fecha_inicio_promocion = %s, fecha_fin_promocion = %s WHERE id_promocion = %s",
             (self._nombre, self._descripcion, clean.get('tipo', 'puntos'),
@@ -133,6 +140,8 @@ class PromotionModel(Connection):
         if existing:
             if existing['estado'] == 1:
                 raise ValidationError({'nombre': 'Ya existe una promocion con ese nombre.'})
+            if data.get('imagen_tarjeta'):
+                clean['imagen_tarjeta'] = data['imagen_tarjeta']
             self._apply_update(existing['id'], clean)
             self._reactivar(existing['id'])
             return existing['id']
@@ -141,13 +150,15 @@ class PromotionModel(Connection):
             "INSERT INTO promociones (nombre_promocion, descripcion_promocion, tipo_promocion, puntos_requeridos, recompensa_promocion, imagen_tarjeta, fecha_inicio_promocion, fecha_fin_promocion) VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
             (self._nombre, self._descripcion, clean.get('tipo', 'puntos'),
              clean.get('puntos_requeridos', 3), self._recompensa,
-             'default_card.png',
+             data.get('imagen_tarjeta') or 'default_card.png',
              self._fecha_inicio, self._fecha_fin))
 
     def _update_promotion(self, promo_id, data):
         clean = self._validate(data)
         if self._nombre_exists(clean['nombre'], promo_id):
             raise ValidationError({'nombre': 'Ya existe una promocion con ese nombre.'})
+        if data.get('imagen_tarjeta'):
+            clean['imagen_tarjeta'] = data['imagen_tarjeta']
         return self._apply_update(promo_id, clean)
 
     def _update_image(self, promo_id, filename):
