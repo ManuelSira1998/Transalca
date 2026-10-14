@@ -245,8 +245,8 @@ function normalizeActionButtons(root = document) {
         btn.classList.remove('btn-orange', 'btn-outline-orange', 'btn-warning', 'btn-outline-warning', 'btn-danger', 'btn-outline-danger', 'btn-success', 'btn-outline-success');
         const icon = btn.querySelector('i.bi');
         if (action === 'register') {
-            btn.classList.add('btn-success');
-            if (icon) icon.className = 'bi bi-plus-circle me-1';
+            btn.classList.add('btn-orange');
+            if (icon) icon.className = 'bi bi-plus-lg me-2';
         } else if (action === 'edit') {
             btn.classList.add('btn-warning');
             if (icon) icon.className = 'bi bi-pencil-square';
@@ -560,10 +560,9 @@ function normalizeRatePayload(json) {
 }
 
 function updateClientRatesBar() {
-    const bcvEl = document.getElementById('rateBcvClient');
-    if (!bcvEl) return;
     const bcv = parseFloat(window.TransalcaRates?.bcv || 0);
-    bcvEl.textContent = bcv > 0 ? bcv.toFixed(2) : 'N/D';
+    const bcvEl = document.getElementById('rateBcvClient');
+    if (bcvEl) bcvEl.textContent = bcv > 0 ? bcv.toFixed(2) : 'N/D';
 }
 
 function hydrateDualPrices(root = document) {

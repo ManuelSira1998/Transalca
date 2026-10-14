@@ -4,6 +4,12 @@ from model.product_model import ProductModel
 from config.validation import ValidationError
 
 
+@pytest.fixture
+def model():
+    """Fixture para obtener una instancia limpia de ProductModel."""
+    return ProductModel()
+
+
 class TestProductModelHelpersAndValidation:
     """Pruebas unitarias para getters, setters y validaciones con Data Provider (@pytest.mark.parametrize)."""
 
@@ -239,6 +245,22 @@ class TestProductModelDatabaseOperations:
         toggle_res = model.ejecutar("toggle_estado", "PROD001")
         assert toggle_res == 1
 
+    @patch.object(ProductModel, "fetch_all")
+    def test_get_catalog_view(self, mock_fetch_all):
+        mock_fetch_all.return_value = [{"codigo": "PROD001", "nombre": "Filtro"}]
+        model = ProductModel()
+        res = model.ejecutar("get_catalog_view")
+        assert len(res) == 1
+        mock_fetch_all.assert_called_once()
+
+    @patch.object(ProductModel, "execute_query")
+    def test_adjust_stock_sp(self, mock_exec):
+        mock_exec.return_value = True
+        model = ProductModel()
+        res = model.ejecutar("adjust_stock_sp", "PROD001", 1, 10, "INGRESO", "Ajuste manual")
+        assert res is True
+        mock_exec.assert_called_once()
+
     @patch.object(ProductModel, "fetch_one")
     def test_exists_methods(self, mock_fetch_one):
         model = ProductModel()
@@ -254,6 +276,9 @@ class TestProductModelDatabaseOperations:
 
         mock_fetch_one.return_value = {"nombre_marca": "Bosch"}
         assert model.ejecutar("brand_exists", "Bosch") is True
+
+        mock_fetch_one.return_value = {"rif_proveedor": "J-12345678-0"}
+        assert model.ejecutar("supplier_exists", "J-12345678-0") is True
 
     def test_ejecutar_invalid_action(self):
         model = ProductModel()

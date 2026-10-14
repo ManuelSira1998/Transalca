@@ -4,6 +4,12 @@ from model.promotion_model import PromotionModel
 from config.validation import ValidationError
 
 
+@pytest.fixture
+def model():
+    """Fixture para obtener una instancia limpia de PromotionModel."""
+    return PromotionModel()
+
+
 class TestPromotionModelProperties:
     """Pruebas unitarias para getters y setters del modelo de promoción."""
 
@@ -145,18 +151,66 @@ class TestPromotionModelDatabaseOperations:
 
     @patch.object(PromotionModel, "update")
     @patch.object(PromotionModel, "_get_by_id")
-    def test_soft_delete(self, mock_get_by_id, mock_update):
+    def test_soft_delete(self, mock_get_by_id, mock_update, model):
+        # Inexistente
+        mock_get_by_id.return_value = None
+        assert model.ejecutar("soft_delete", 999) is None
+
+        # Existente
         mock_get_by_id.return_value = {"id": 1, "nombre": "Promo Test"}
         mock_update.return_value = 1
-
-        model = PromotionModel()
         result = model.ejecutar("soft_delete", 1)
-
         assert result == 0
         mock_update.assert_called_once()
 
-    def test_ejecutar_invalid_action(self):
-        model = PromotionModel()
+    @patch.object(PromotionModel, "insert")
+    @patch.object(PromotionModel, "fetch_one")
+    def test_assign_card_to_client_new_card(self, mock_fetch_one, mock_insert, model):
+        # 1. client exists in transalca.cliente
+        # 2. card does not exist yet (None)
+        mock_fetch_one.side_effect = [{"id_cliente": 1}, None]
+        mock_insert.return_value = 50
+
+        card_id = model.ejecutar("assign_card_to_client", "V-12345678", 1)
+        assert card_id == 50
+        mock_insert.assert_called_once()
+
+    @patch.object(PromotionModel, "fetch_one")
+    def test_assign_card_to_client_existing_card(self, mock_fetch_one, model):
+        mock_fetch_one.side_effect = [{"id_cliente": 1}, {"id": 25}]
+        card_id = model.ejecutar("assign_card_to_client", "V-12345678", 1)
+        assert card_id == 25
+
+    @patch.object(PromotionModel, "_get_client_info")
+    @patch.object(PromotionModel, "fetch_all")
+    def test_get_client_cards_and_all_cards(self, mock_fetch_all, mock_client_info, model):
+        mock_fetch_all.return_value = [{"id": 1, "cliente_cedula": "V-12345678"}]
+        mock_client_info.return_value = {"cliente_nombre": "Carlos"}
+
+        cards = model.ejecutar("get_client_cards", "V-12345678")
+        assert len(cards) == 1
+        assert cards[0]["cliente_nombre"] == "Carlos"
+
+        all_cards = model.ejecutar("get_all_cards")
+        assert len(all_cards) == 1
+
+    @patch.object(PromotionModel, "_get_client_info")
+    @patch.object(PromotionModel, "fetch_one")
+    def test_get_card_by_id(self, mock_fetch_one, mock_client_info, model):
+        mock_fetch_one.return_value = {"id": 1, "cliente_cedula": "V-12345678"}
+        mock_client_info.return_value = {"cliente_nombre": "Carlos"}
+
+        card = model.ejecutar("get_card_by_id", 1)
+        assert card["id"] == 1
+        assert card["cliente_nombre"] == "Carlos"
+
+    @patch.object(PromotionModel, "fetch_all")
+    def test_get_card_history(self, mock_fetch_all, model):
+        mock_fetch_all.return_value = [{"id": 1, "puntos": 1}]
+        history = model.ejecutar("get_card_history", 1)
+        assert len(history) == 1
+
+    def test_ejecutar_invalid_action(self, model):
         with pytest.raises(ValueError) as exc_info:
             model.ejecutar("accion_inexistente")
 

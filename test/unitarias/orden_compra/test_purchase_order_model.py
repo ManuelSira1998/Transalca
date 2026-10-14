@@ -6,6 +6,12 @@ from model.purchase_order_model import PurchaseOrderModel
 from config.validation import ValidationError
 
 
+@pytest.fixture
+def model():
+    """Fixture para obtener una instancia limpia de PurchaseOrderModel."""
+    return PurchaseOrderModel()
+
+
 class TestPurchaseOrderModelHelpersAndValidation:
     """Pruebas unitarias con Data Provider (@pytest.mark.parametrize) para helpers y validaciones de ordenes de compra."""
 
@@ -247,6 +253,33 @@ class TestPurchaseOrderModelTransactionsAndDatabase:
             assert "ya ha sido procesada" in res["message"]
             mock_conn.rollback.assert_called_once()
             mock_conn.commit.assert_not_called()
+
+    # PRUEBA TRANSACCIONAL: Marcar orden comprada cuando el producto aun no tenia stock en la sucursal (INSERT en stock)
+    def test_mark_as_bought_insert_new_stock_when_not_exists(self):
+        model = PurchaseOrderModel()
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_conn.cursor.return_value = mock_cursor
+
+        # 1. Select order: pendiente
+        # 2. Select stock: None (no existe fila de stock previa)
+        mock_cursor.fetchone.side_effect = [
+            {"id": 2, "sucursal_id": 1, "estado": "pendiente"},
+            None
+        ]
+        # Detalle de la orden
+        mock_cursor.fetchall.return_value = [
+            {"producto_codigo": "PROD002", "cantidad": 10}
+        ]
+
+        with patch.object(PurchaseOrderModel, "con_transalca", return_value=mock_conn):
+            res = model.ejecutar("mark_as_bought", 2)
+
+            assert res["ok"] is True
+            mock_conn.commit.assert_called_once()
+            # Verifica que se ejecuto el INSERT INTO stock
+            executed_sql = [call[0][0] for call in mock_cursor.execute.call_args_list]
+            assert any("INSERT INTO stock" in sql for sql in executed_sql)
 
     def test_ejecutar_invalid_action(self):
         model = PurchaseOrderModel()

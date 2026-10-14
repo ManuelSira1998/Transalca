@@ -242,7 +242,17 @@ async function renderDynamicSidebar() {
             return ta.localeCompare(tb, 'es', { sensitivity: 'base' });
         });
 
-        let html = '';
+        const mobileHeaderHtml = `
+<div class="sidebar-mobile-header d-flex align-items-center justify-content-between px-3 py-2 border-bottom d-md-none" style="border-color:rgba(255,255,255,0.08)!important;min-height:50px;">
+    <span class="fw-bold text-white d-flex align-items-center gap-2" style="font-size:0.95rem;">
+        <i class="bi bi-layout-sidebar-inset text-warning"></i> Menú
+    </span>
+    <button type="button" class="btn btn-sm text-white-50 p-1 btn-close-sidebar" id="closeSidebar" aria-label="Cerrar menú">
+        <i class="bi bi-x-lg fs-5 text-white"></i>
+    </button>
+</div>`;
+
+        let html = mobileHeaderHtml;
         if (dashboardMod) {
             const page = (dashboardMod.ruta || '').split('/').pop();
             html += `<a href="${escapeHtml(dashboardMod.ruta)}" class="nav-link" data-page="${escapeHtml(page)}"><i class="${escapeHtml(dashboardMod.icono || 'bi bi-grid-1x2-fill')}"></i> ${escapeHtml(dashboardMod.titulo)}</a>`;
@@ -1026,10 +1036,21 @@ function bindReliableSidebarNavigation() {
         if (!href || href === '#' || href.startsWith('javascript:')) return;
         e.preventDefault();
         if (window.innerWidth <= 768) {
-            const sidebar = document.getElementById('adminSidebar');
-            if (sidebar) sidebar.classList.remove('show');
+            closeAdminSidebar();
         }
         window.location.assign(href);
+    });
+}
+
+function ensureResponsiveTables(root = document) {
+    const scope = root instanceof Element ? root : document;
+    scope.querySelectorAll('.card-body > table, .card > table').forEach(table => {
+        if (!table.parentElement.classList.contains('table-responsive')) {
+            const wrap = document.createElement('div');
+            wrap.className = 'table-responsive mb-0';
+            table.parentNode.insertBefore(wrap, table);
+            wrap.appendChild(table);
+        }
     });
 }
 
@@ -1705,6 +1726,8 @@ function runDomEnhancements(root = document) {
         snapshotActionButtons(root);
         applyAdminDocumentTitle();
         initAdminNavbar();
+        initAdminSidebar();
+        ensureResponsiveTables(root);
 
 
         const sidebar = document.getElementById('adminSidebar');
@@ -1903,8 +1926,8 @@ function normalizeActionButtons(root = document) {
         btn.classList.remove('btn-orange', 'btn-outline-orange', 'btn-warning', 'btn-outline-warning', 'btn-danger', 'btn-outline-danger', 'btn-success', 'btn-outline-success');
         const icon = btn.querySelector('i.bi');
         if (action === 'register') {
-            btn.classList.add('btn-success');
-            if (icon) icon.className = 'bi bi-plus-circle me-1';
+            btn.classList.add('btn-orange');
+            if (icon) icon.className = 'bi bi-plus-lg me-2';
         } else if (action === 'edit') {
             btn.classList.add('btn-warning');
             if (icon) icon.className = 'bi bi-pencil-square';
@@ -1943,6 +1966,52 @@ document.addEventListener('click', e => {
     }
 }, true);
 
+function toggleAdminSidebar(forceOpen) {
+    const sidebar = document.getElementById('adminSidebar');
+    if (!sidebar) return;
+    const shouldOpen = typeof forceOpen === 'boolean'
+        ? forceOpen
+        : !sidebar.classList.contains('show');
+
+    sidebar.classList.toggle('show', shouldOpen);
+    document.body.classList.toggle('sidebar-open', shouldOpen);
+
+    let backdrop = document.getElementById('sidebarBackdrop');
+    if (shouldOpen) {
+        if (!backdrop) {
+            backdrop = document.createElement('div');
+            backdrop.id = 'sidebarBackdrop';
+            backdrop.className = 'sidebar-backdrop';
+            document.body.appendChild(backdrop);
+        }
+        void backdrop.offsetWidth;
+        backdrop.classList.add('show');
+    } else if (backdrop) {
+        backdrop.classList.remove('show');
+    }
+}
+
+function closeAdminSidebar() {
+    toggleAdminSidebar(false);
+}
+
+function initAdminSidebar() {
+    if (document.body.dataset.adminSidebarInit === '1') return;
+    document.body.dataset.adminSidebarInit = '1';
+
+    document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+            closeAdminSidebar();
+        }
+    });
+
+    window.addEventListener('resize', () => {
+        if (window.innerWidth > 768) {
+            closeAdminSidebar();
+        }
+    });
+}
+
 document.addEventListener('DOMContentLoaded', () => {
     installSweetAlertDefaults();
     cleanupUiLocks();
@@ -1953,11 +2022,7 @@ document.addEventListener('DOMContentLoaded', () => {
             link.classList.add('active');
         }
     });
-    const toggle = document.getElementById('toggleSidebar');
-    const sidebar = document.getElementById('adminSidebar');
-    if (toggle && sidebar) {
-        toggle.addEventListener('click', () => sidebar.classList.toggle('show'));
-    }
+    initAdminSidebar();
     runDomEnhancements();
     loadExchangeRatesCached().then(() => hydrateDualPrices());
     const observer = new MutationObserver(mutations => {
@@ -1973,6 +2038,37 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 document.addEventListener('click', async (e) => {
+    const sidebarToggle = e.target.closest('#toggleSidebar, .sidebar-toggle, [data-toggle="sidebar"]');
+    if (sidebarToggle) {
+        e.preventDefault();
+        e.stopPropagation();
+        toggleAdminSidebar();
+        return;
+    }
+
+    const sidebarClose = e.target.closest('#closeSidebar, .btn-close-sidebar');
+    if (sidebarClose) {
+        e.preventDefault();
+        e.stopPropagation();
+        closeAdminSidebar();
+        return;
+    }
+
+    const sidebarBackdrop = e.target.closest('#sidebarBackdrop, .sidebar-backdrop');
+    if (sidebarBackdrop) {
+        e.preventDefault();
+        e.stopPropagation();
+        closeAdminSidebar();
+        return;
+    }
+
+    const openSidebar = document.getElementById('adminSidebar');
+    if (openSidebar && openSidebar.classList.contains('show')) {
+        if (!e.target.closest('#adminSidebar, #toggleSidebar, .sidebar-toggle, [data-toggle="sidebar"]')) {
+            closeAdminSidebar();
+        }
+    }
+
     const closeToast = e.target.closest('.close-toast, .toast-close');
     if (closeToast) {
         e.preventDefault();

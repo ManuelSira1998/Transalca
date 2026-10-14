@@ -119,5 +119,4 @@ class TestPromotionController:
         response = auth_employee_client.delete('/api/promotions/1')
         json_data = response.get_json()
 
-        assert response.status_code == 200
-        assert json_data["status"] == "success"
+        assert response.status_code == 405

@@ -151,6 +151,9 @@ a:hover {
 .admin-layout {
     display: flex;
     min-height: 100vh;
+    width: 100%;
+    max-width: 100vw;
+    overflow-x: hidden;
 }
 
 
@@ -2439,31 +2442,221 @@ input[type="password"]::-ms-clear {
     font-weight: 500;
 }
 
+.header-search-input {
+    width: 250px;
+}
+
+#toggleSidebar {
+    background: transparent;
+    border: none;
+    padding: 4px 6px;
+    color: var(--text-dark, #1e293b);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    border-radius: 6px;
+    line-height: 1;
+    transition: background 0.2s ease, color 0.2s ease;
+}
+
+#toggleSidebar:hover,
+#toggleSidebar:focus {
+    background: rgba(0, 0, 0, 0.05);
+    color: var(--primary, #E67E22);
+}
+
+.sidebar-backdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(15, 23, 42, 0.55);
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+    z-index: 1038;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.25s ease, visibility 0.25s ease;
+    pointer-events: none;
+}
+
+.sidebar-backdrop.show,
+body.sidebar-open .sidebar-backdrop {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+}
 
 @media (max-width: 768px) {
+    body.sidebar-open {
+        overflow: hidden;
+    }
+
+    #toggleSidebar {
+        display: inline-flex !important;
+    }
+
     .sidebar {
         transform: translateX(-100%);
+        z-index: 1045;
+        box-shadow: none;
+        transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.3s ease;
     }
 
     .sidebar.show {
         transform: translateX(0);
+        box-shadow: 6px 0 24px rgba(0, 0, 0, 0.4);
+    }
+
+    .sidebar-mobile-header {
+        background: rgba(0, 0, 0, 0.15);
+    }
+
+    .btn-close-sidebar {
+        border: none;
+        background: transparent;
+        opacity: 0.8;
+        cursor: pointer;
+        transition: opacity 0.2s ease, transform 0.2s ease;
+    }
+
+    .btn-close-sidebar:hover,
+    .btn-close-sidebar:focus {
+        opacity: 1;
+        transform: scale(1.1);
     }
 
     .main-content {
         margin-left: 0;
+        width: 100%;
+        max-width: 100%;
     }
 
     .content-area {
         padding: 16px;
-    }
-
-    .filter-bar {
-        flex-direction: column;
-    }
-
-    .filter-bar .form-select,
-    .filter-bar .form-control {
+        width: 100%;
         max-width: 100%;
+        box-sizing: border-box;
+    }
+
+    /* Module header on mobile: title on top, action buttons wrapped below */
+    .content-area > .d-flex.justify-content-between:not(.card-header):not(.card-body),
+    .content-area > div:not(.card):not(.row):not(.table-responsive) > .d-flex.justify-content-between:not(.card-header):not(.card-body) {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 12px !important;
+        margin-bottom: 1rem !important;
+    }
+
+    .content-area > .d-flex.justify-content-between:not(.card-header):not(.card-body) > h4,
+    .content-area > div:not(.card):not(.row):not(.table-responsive) > .d-flex.justify-content-between:not(.card-header):not(.card-body) > h4 {
+        margin-bottom: 0 !important;
+        font-size: 1.25rem !important;
+        line-height: 1.3 !important;
+        word-break: break-word;
+    }
+
+    /* Action buttons container in module header */
+    .content-area > .d-flex.justify-content-between:not(.card-header):not(.card-body) > .d-flex,
+    .content-area > div:not(.card):not(.row):not(.table-responsive) > .d-flex.justify-content-between:not(.card-header):not(.card-body) > .d-flex {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        width: 100% !important;
+        gap: 8px !important;
+        align-items: center;
+    }
+
+    /* Search input inside header actions (like products.html) */
+    .content-area > .d-flex.justify-content-between:not(.card-header):not(.card-body) > .d-flex > input,
+    .content-area > div:not(.card):not(.row):not(.table-responsive) > .d-flex.justify-content-between:not(.card-header):not(.card-body) > .d-flex > input,
+    .header-search-input,
+    #productSearch,
+    #salesOrderSearch {
+        width: 100% !important;
+        max-width: 100% !important;
+        flex: 1 1 100% !important;
+        order: -1;
+    }
+
+    /* Export dropdown and Register button in header */
+    .content-area > .d-flex.justify-content-between:not(.card-header):not(.card-body) > .d-flex > .dropdown,
+    .content-area > div:not(.card):not(.row):not(.table-responsive) > .d-flex.justify-content-between:not(.card-header):not(.card-body) > .d-flex > .dropdown {
+        flex: 1 1 calc(50% - 4px);
+        min-width: 120px;
+    }
+
+    .content-area > .d-flex.justify-content-between:not(.card-header):not(.card-body) > .d-flex > .dropdown > .dropdown-toggle,
+    .content-area > div:not(.card):not(.row):not(.table-responsive) > .d-flex.justify-content-between:not(.card-header):not(.card-body) > .d-flex > .dropdown > .dropdown-toggle {
+        width: 100% !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        white-space: nowrap !important;
+        padding: 8px 10px !important;
+        font-size: 0.85rem !important;
+    }
+
+    .content-area > .d-flex.justify-content-between:not(.card-header):not(.card-body) > .d-flex > .btn,
+    .content-area > div:not(.card):not(.row):not(.table-responsive) > .d-flex.justify-content-between:not(.card-header):not(.card-body) > .d-flex > .btn {
+        flex: 1 1 calc(50% - 4px);
+        min-width: 120px;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        white-space: nowrap !important;
+        padding: 8px 12px !important;
+        font-size: 0.85rem !important;
+    }
+
+    /* Auto table search full width on mobile */
+    .auto-table-search-wrap {
+        max-width: 100% !important;
+        width: 100% !important;
+        margin-left: 0 !important;
+        margin-bottom: 12px !important;
+    }
+
+    .auto-table-search {
+        width: 100% !important;
+        min-width: 0 !important;
+    }
+
+    /* Filter bars on mobile */
+    .filter-bar,
+    .compact-filter-card {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 10px !important;
+    }
+
+    .filter-bar > div,
+    .compact-filter-card > div {
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+
+    .filter-bar .d-flex,
+    .compact-filter-card .d-flex {
+        flex-wrap: wrap !important;
+        width: 100% !important;
+        gap: 8px !important;
+    }
+
+    .filter-bar .form-control,
+    .filter-bar .form-select,
+    .filter-bar input,
+    .filter-bar select,
+    .compact-filter-card .form-control,
+    .compact-filter-card .form-select,
+    .compact-filter-card input,
+    .compact-filter-card select {
+        width: 100% !important;
+        max-width: 100% !important;
+        flex: 1 1 100% !important;
     }
 
     .filter-bar .select2-container,
@@ -2472,6 +2665,135 @@ input[type="password"]::-ms-clear {
         flex: 1 1 100% !important;
         width: 100% !important;
         max-width: 100% !important;
+    }
+
+    .filter-bar .ms-auto,
+    .compact-filter-card .ms-auto {
+        margin-left: 0 !important;
+        width: 100% !important;
+        display: flex !important;
+        flex-wrap: wrap !important;
+        gap: 8px !important;
+    }
+
+    .filter-bar .ms-auto > .dropdown,
+    .filter-bar .ms-auto > .btn,
+    .compact-filter-card .ms-auto > .dropdown,
+    .compact-filter-card .ms-auto > .btn {
+        flex: 1 1 calc(50% - 4px) !important;
+        min-width: 120px !important;
+        white-space: nowrap !important;
+        justify-content: center !important;
+    }
+
+    /* Filter ribbon (e.g. in report_stats.html) */
+    .filter-ribbon {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 8px !important;
+    }
+
+    .filter-ribbon > div {
+        width: 100% !important;
+        margin-left: 0 !important;
+    }
+
+    /* Nav tabs scrolling on mobile */
+    .nav-tabs {
+        flex-wrap: nowrap !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        -webkit-overflow-scrolling: touch;
+        border-bottom: 2px solid var(--border);
+    }
+
+    .nav-tabs .nav-item {
+        white-space: nowrap;
+        flex-shrink: 0;
+    }
+
+    .nav-tabs .nav-link {
+        white-space: nowrap;
+        padding: 8px 14px;
+        font-size: 0.85rem;
+    }
+
+    /* Cards and Table horizontal scrolling */
+    .card {
+        border-radius: var(--radius-md);
+        max-width: 100%;
+    }
+
+    /* Card header mobile preservation */
+    .card-header,
+    .card-header.d-flex,
+    .card .card-header {
+        flex-direction: row !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        gap: 8px !important;
+        margin-bottom: 0 !important;
+    }
+
+    .card-header .badge,
+    .card-header > span.badge,
+    #ticketCountAdmin {
+        width: auto !important;
+        min-width: 0 !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        align-self: center !important;
+        flex: 0 0 auto !important;
+        margin: 0 !important;
+        padding: 0.28rem 0.65rem !important;
+        font-size: 0.75rem !important;
+        font-weight: 700 !important;
+        border-radius: 50rem !important;
+    }
+
+    .card-body.p-0 {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+        width: 100%;
+        max-width: 100%;
+    }
+
+    .table-responsive {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+        width: 100%;
+        max-width: 100%;
+        margin-bottom: 0;
+    }
+
+    .table {
+        min-width: 480px;
+    }
+
+    .table th,
+    .table td {
+        padding: 10px 12px !important;
+        font-size: 0.82rem;
+        vertical-align: middle;
+    }
+
+    .table-actions {
+        white-space: nowrap;
+    }
+
+    @media (max-width: 440px) {
+        .content-area > .d-flex.justify-content-between:not(.card-header):not(.card-body) > .d-flex > .dropdown,
+        .content-area > div:not(.card):not(.row):not(.table-responsive) > .d-flex.justify-content-between:not(.card-header):not(.card-body) > .d-flex > .dropdown,
+        .content-area > .d-flex.justify-content-between:not(.card-header):not(.card-body) > .d-flex > .btn,
+        .content-area > div:not(.card):not(.row):not(.table-responsive) > .d-flex.justify-content-between:not(.card-header):not(.card-body) > .d-flex > .btn,
+        .filter-bar .ms-auto > .dropdown,
+        .filter-bar .ms-auto > .btn,
+        .compact-filter-card .ms-auto > .dropdown,
+        .compact-filter-card .ms-auto > .btn {
+            flex: 1 1 100% !important;
+            width: 100% !important;
+        }
     }
 
     .stat-card {
@@ -2513,6 +2835,14 @@ input[type="password"]::-ms-clear {
     .client-footer-bottom {
         flex-direction: column;
         align-items: flex-start;
+    }
+}
+
+@media (min-width: 768.02px) {
+    #toggleSidebar,
+    .sidebar-mobile-header,
+    .sidebar-backdrop {
+        display: none !important;
     }
 }
 
@@ -3463,32 +3793,55 @@ body.client-store #cartItems img {
         height: 40px;
     }
 
-    body.client-store .client-navbar .container {
-        flex-wrap: nowrap;
+    body.client-store .client-navbar .container,
+    .client-navbar .container {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        align-items: center !important;
+        justify-content: space-between !important;
         gap: 6px;
     }
 
-    body.client-store .client-brand {
+    body.client-store .client-brand,
+    .client-brand {
         flex: 1 1 auto;
         min-width: 0;
         gap: 9px;
     }
 
-    body.client-store .client-brand>div {
+    body.client-store .client-brand>div,
+    .client-brand>div {
         min-width: 0;
     }
 
-    body.client-store .client-brand strong {
+    body.client-store .client-brand strong,
+    .client-brand strong {
         font-size: 0.9rem;
-        max-width: 132px;
+        max-width: min(220px, calc(100vw - 180px));
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+        display: block;
     }
 
-    body.client-store .client-navbar .order-lg-3 {
-        flex: 0 0 auto;
+    body.client-store .client-navbar .order-lg-3,
+    body.client-store .client-actions,
+    .client-navbar .order-lg-3,
+    .client-actions {
+        flex: 0 0 auto !important;
+        margin-left: auto !important;
         gap: 5px !important;
+    }
+
+    body.client-store .client-navbar .navbar-collapse,
+    .client-navbar .navbar-collapse {
+        flex-basis: 100% !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        order: 10 !important;
+        margin-top: 10px !important;
+        padding-top: 10px !important;
+        border-top: 1px solid rgba(15, 23, 42, 0.08) !important;
     }
 
     body.client-store .client-navbar .guest-only.btn,
@@ -4899,20 +5252,59 @@ body.client-store .punch-slot {
 }
 
 @media (max-width: 992px) {
-    body.client-store .client-navbar .container {
+    body.client-store .client-navbar .container,
+    .client-navbar .container {
+        display: flex !important;
+        flex-wrap: wrap !important;
+        align-items: center !important;
+        justify-content: space-between !important;
         gap: 10px;
     }
 
-    body.client-store .client-navbar .navbar-collapse {
-        width: 100%;
-        order: 4;
-        margin-top: 10px;
-        padding-top: 10px;
+    body.client-store .client-brand,
+    .client-brand {
+        flex: 1 1 auto;
+        min-width: 0;
     }
 
-    body.client-store .client-nav-links .nav-link {
-        width: 100%;
-        justify-content: flex-start;
+    body.client-store .client-actions,
+    .client-actions {
+        flex: 0 0 auto !important;
+        margin-left: auto !important;
+    }
+
+    body.client-store .client-navbar .navbar-collapse,
+    .client-navbar .navbar-collapse {
+        flex-basis: 100% !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        order: 10 !important;
+        margin-top: 10px;
+        padding-top: 10px;
+        border-top: 1px solid rgba(15, 23, 42, 0.08);
+    }
+
+    body.client-store .client-nav-links,
+    .client-nav-links {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: stretch !important;
+        width: 100% !important;
+        gap: 4px !important;
+        padding: 6px 0 !important;
+        margin: 0 !important;
+    }
+
+    body.client-store .client-nav-links .nav-link,
+    .client-nav-links .nav-link {
+        width: 100% !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: flex-start !important;
+        padding: 10px 14px !important;
+        border-radius: 10px !important;
+        font-size: 0.9rem !important;
+        font-weight: 600 !important;
     }
 
     body.client-store .catalog-filter-card {
@@ -4989,6 +5381,47 @@ body.client-store .punch-slot {
         width: 40px;
         height: 40px;
         min-height: 40px;
+    }
+
+    body.client-store .client-rate-pill,
+    .client-rate-pill {
+        min-height: 40px !important;
+        height: 40px !important;
+        padding: 0 10px !important;
+        font-size: 0.76rem !important;
+        font-weight: 700 !important;
+        white-space: nowrap !important;
+        border-radius: 10px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+    }
+
+    @media (max-width: 440px) {
+        body.client-store .client-rate-pill,
+        .client-rate-pill {
+            padding: 0 7px !important;
+            font-size: 0.72rem !important;
+            min-height: 38px !important;
+            height: 38px !important;
+        }
+
+        body.client-store .client-brand strong,
+        .client-brand strong {
+            max-width: 105px !important;
+            font-size: 0.82rem !important;
+        }
+    }
+
+    @media (max-width: 360px) {
+        .rate-label-text {
+            display: none !important;
+        }
+
+        body.client-store .client-rate-pill,
+        .client-rate-pill {
+            padding: 0 5px !important;
+            font-size: 0.68rem !important;
+        }
     }
 
     body.client-store .catalog-filter-card {
