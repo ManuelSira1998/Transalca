@@ -11,9 +11,33 @@ const Validator = {
         const form = document.getElementById(formId);
         if (!form) return;
         form.querySelectorAll('input, select, textarea').forEach(field => {
-            field.addEventListener('input', () => this.validateField(formId, field.id));
-            field.addEventListener('change', () => this.validateField(formId, field.id));
+            field.addEventListener('input', () => {
+                this.validateField(formId, field.id);
+                updateFormSubmitState(formId);
+            });
+            field.addEventListener('change', () => {
+                this.validateField(formId, field.id);
+                updateFormSubmitState(formId);
+            });
+            field.addEventListener('blur', () => {
+                this.validateField(formId, field.id);
+                updateFormSubmitState(formId);
+            });
         });
+    },
+
+    clearErrors(formId) {
+        const form = document.getElementById(formId);
+        if (!form) return;
+        form.querySelectorAll('.is-invalid, .is-valid').forEach(el => {
+            el.classList.remove('is-invalid', 'is-valid');
+            delete el.dataset.externalError;
+        });
+        form.querySelectorAll('.invalid-feedback').forEach(fb => {
+            fb.textContent = '';
+            fb.style.display = 'none';
+        });
+        updateFormSubmitState(formId);
     },
 
     validate(formId) {
@@ -22,6 +46,7 @@ const Validator = {
         Object.keys(rules).forEach(fieldId => {
             if (!this.validateField(formId, fieldId)) valid = false;
         });
+        updateFormSubmitState(formId);
         return valid;
     },
 
@@ -32,12 +57,21 @@ const Validator = {
 
         const value = (field.value || '').trim();
         let message = '';
-        if (rules.required && !value) message = rules.requiredMsg || 'Campo requerido';
-        else if (rules.minLength && value && value.length < rules.minLength) message = rules.minLengthMsg || `Minimo ${rules.minLength} caracteres`;
-        else if (rules.maxLength && value.length > rules.maxLength) message = rules.maxLengthMsg || `Maximo ${rules.maxLength} caracteres`;
-        else if (rules.pattern && value && !rules.pattern.test(value)) message = rules.patternMsg || 'Formato invalido';
-        else if (rules.min !== undefined && value && Number(value) < rules.min) message = rules.minMsg || `Valor minimo ${rules.min}`;
-        else if (rules.custom && !rules.custom(value)) message = rules.customMsg || 'Valor invalido';
+        if (field.dataset.externalError) {
+            message = field.dataset.externalError;
+        } else if (rules.required && !value) {
+            message = rules.requiredMsg || 'Campo requerido';
+        } else if (rules.minLength && value && value.length < rules.minLength) {
+            message = rules.minLengthMsg || `Mínimo ${rules.minLength} caracteres`;
+        } else if (rules.maxLength && value.length > rules.maxLength) {
+            message = rules.maxLengthMsg || `Máximo ${rules.maxLength} caracteres`;
+        } else if (rules.pattern && value && !rules.pattern.test(value)) {
+            message = rules.patternMsg || 'Formato inválido';
+        } else if (rules.min !== undefined && value && Number(value) < rules.min) {
+            message = rules.minMsg || `Valor mínimo ${rules.min}`;
+        } else if (rules.custom && !rules.custom(value)) {
+            message = rules.customMsg || 'Valor inválido';
+        }
 
         this.setFieldError(field, message);
         return !message;
@@ -46,16 +80,40 @@ const Validator = {
     showServerErrors(formId, errors) {
         Object.entries(errors || {}).forEach(([fieldId, message]) => {
             const field = document.getElementById(fieldId);
-            if (field) this.setFieldError(field, Array.isArray(message) ? message[0] : message);
+            if (field) {
+                const msg = Array.isArray(message) ? message[0] : message;
+                field.dataset.externalError = msg;
+                this.setFieldError(field, msg);
+            }
         });
+        updateFormSubmitState(formId);
     },
 
     setFieldError(field, message) {
-        field.classList.toggle('is-invalid', !!message);
-        let feedback = field.parentElement.querySelector('.client-validation-message');
-        if (!feedback && message) {
+        if (!field) return;
+        const value = (field.value || '').trim();
+        if (message) {
+            field.classList.add('is-invalid');
+            field.classList.remove('is-valid');
+        } else if (value) {
+            field.classList.add('is-valid');
+            field.classList.remove('is-invalid');
+            delete field.dataset.externalError;
+        } else {
+            field.classList.remove('is-invalid', 'is-valid');
+            delete field.dataset.externalError;
+        }
+
+        let feedback = field.nextElementSibling;
+        while (feedback && !feedback.classList.contains('invalid-feedback')) {
+            feedback = feedback.nextElementSibling;
+        }
+        if (!feedback && field.parentElement) {
+            feedback = field.parentElement.querySelector(':scope > .invalid-feedback') || field.parentElement.querySelector('.invalid-feedback');
+        }
+        if (!feedback && field.parentElement) {
             feedback = document.createElement('div');
-            feedback.className = 'invalid-feedback client-validation-message';
+            feedback.className = 'invalid-feedback';
             field.parentElement.appendChild(feedback);
         }
         if (feedback) {
@@ -64,6 +122,47 @@ const Validator = {
         }
     }
 };
+
+function serializeForm(form) {
+    const data = {};
+    form.querySelectorAll('input, select, textarea').forEach(el => {
+        if (!el.id && !el.name) return;
+        const key = el.id || el.name;
+        if (el.type === 'checkbox' || el.type === 'radio') {
+            data[key] = el.checked;
+        } else {
+            data[key] = (el.value || '').trim();
+        }
+    });
+    return JSON.stringify(data);
+}
+
+function formHasMissingRequired(formId, form) {
+    const rules = (Validator.rules && Validator.rules[formId]) || {};
+    for (const [field, fieldRules] of Object.entries(rules)) {
+        if (!fieldRules || !fieldRules.required) continue;
+        const el = document.getElementById(field) || form.querySelector(`[name="${field}"]`);
+        if (!el || el.disabled) continue;
+        const value = (el.value || '').trim();
+        if (!value) return true;
+    }
+    return false;
+}
+
+function updateFormSubmitState(formId) {
+    const form = document.getElementById(formId);
+    if (!form) return;
+    const modal = form.closest('.modal-content') || form;
+    const hasErrors = !!form.querySelector('.is-invalid');
+    const missingRequired = formHasMissingRequired(formId, form);
+    const isDirty = form._initialState !== undefined ? (serializeForm(form) !== form._initialState) : true;
+
+    modal.querySelectorAll('button[type="submit"], #btnSaveVehicle').forEach(btn => {
+        if (!btn.dataset.loading) {
+            btn.disabled = hasErrors || missingRequired || (form._initialState !== undefined ? !isDirty : false);
+        }
+    });
+}
 
 const clientProfileState = {
     cedula: '',
@@ -92,6 +191,17 @@ function bindProfileEvents() {
     $('#btnSaveVehicle').on('click', saveVehicleFromProfile);
     $('#btnVehicleCarnet').on('click', () => $('#vCarnetFile').trigger('click'));
     $('#vCarnetFile').on('change', onCarnetFileSelected);
+    $('#vPlaca').on('input', function () {
+        const start = this.selectionStart;
+        const end = this.selectionEnd;
+        this.value = this.value.toUpperCase();
+        if (start !== null && end !== null) {
+            this.setSelectionRange(start, end);
+        }
+        delete this.dataset.externalError;
+        Validator.validateField('vehicleForm', 'vPlaca');
+        updateFormSubmitState('vehicleForm');
+    });
 
     Validator.setRules('profileForm', {
         fNombre: { required: true, minLength: 2, maxLength: 30, pattern: /^[A-Za-zÁÉÍÓÚáéíóúÑñ ]+$/, requiredMsg: 'El nombre es obligatorio', patternMsg: 'El nombre solo puede contener letras', maxLengthMsg: 'El nombre no puede superar los 30 caracteres.' },
@@ -137,6 +247,11 @@ async function loadProfile() {
         $('#profileName').text(`${p.nombre || ''} ${p.apellido || ''}`.trim());
         $('#profileEmail').text(p.email || '');
         setProfilePhoto(p.foto_perfil || 'default.png');
+        const profileForm = document.getElementById('profileForm');
+        if (profileForm) {
+            profileForm._initialState = serializeForm(profileForm);
+            updateFormSubmitState('profileForm');
+        }
     } catch (e) {
         showToast('Error al cargar el perfil', 'error');
     }
@@ -188,6 +303,11 @@ async function onSaveProfile(event) {
         }
         $('#profileName').text(`${payload.nombre} ${payload.apellido}`.trim());
         showToast(data.message || 'Perfil modificado correctamente', 'success');
+        const profileForm = document.getElementById('profileForm');
+        if (profileForm) {
+            profileForm._initialState = serializeForm(profileForm);
+            updateFormSubmitState('profileForm');
+        }
     } catch (e) {
         showToast('Error al actualizar el perfil', 'error');
     } finally {
@@ -308,7 +428,7 @@ function renderVehiclesTable() {
                 <td><strong>${escapeHtml(v.placa || '-')}</strong></td>
                 <td>${escapeHtml(v.marca || '-')}</td>
                 <td>${escapeHtml(v.modelo || '-')}</td>
-                <td>${escapeHtml(v.anio || '-')}</td>
+                <td>${escapeHtml(v.anio || v.anio_vehiculo || '-')}</td>
                 <td>${Number(v.kilometraje_actual || 0).toLocaleString()}</td>
                 <td>${carnetCell}</td>
                 <td>
@@ -323,30 +443,43 @@ function renderVehiclesTable() {
 function openVehicleModal(vehicle = null) {
     clientProfileState.editingVehicleId = vehicle ? (vehicle.placa || vehicle.id) : null;
     clientProfileState.pendingCarnetFile = null;
-    $('#vehicleForm')[0].reset();
+    const form = document.getElementById('vehicleForm');
+    if (form) {
+        form.reset();
+        delete form._initialState;
+    }
+    Validator.clearErrors('vehicleForm');
     $('#vCarnetFile').val('');
     $('#vCarnetFileName').text('No seleccionado');
     $('#vCarnetPreview').hide().attr('src', '');
-    $('#vCombustibleError').addClass('d-none');
-    $('#vCombustible').removeClass('is-invalid');
+    $('#vCombustibleError').text('').hide();
+    $('#vCombustible').removeClass('is-invalid is-valid');
 
     if (vehicle) {
-        $('#vehicleModalTitle').text('Editar Vehiculo');
+        $('#vehicleModalTitle').html('<i class="bi bi-pencil-square me-2"></i>Modificar Vehículo');
+        $('#btnSaveVehicle').html('<i class="bi bi-check-lg me-1"></i>Guardar');
         $('#editVehicleId').val(vehicle.placa || vehicle.id);
         $('#vMarca').val(vehicle.marca || '');
         $('#vModelo').val(vehicle.modelo || '');
-        $('#vAnio').val(vehicle.anio || '');
-        $('#vPlaca').val(vehicle.placa || '');
+        $('#vAnio').val(vehicle.anio || vehicle.anio_vehiculo || '');
+        $('#vPlaca').val((vehicle.placa || '').toUpperCase());
         $('#vColor').val(vehicle.color || '');
         $('#vTipo').val(vehicle.tipo_vehiculo || '');
         $('#vCombustible').val(vehicle.tipo_combustible || 'gasolina');
         $('#vKm').val(vehicle.kilometraje_actual || 0);
+
+        if (form) {
+            form._initialState = serializeForm(form);
+        }
     } else {
-        $('#vehicleModalTitle').text('Agregar Vehiculo');
+        $('#vehicleModalTitle').html('<i class="bi bi-car-front me-2"></i>Registrar Vehículo');
+        $('#btnSaveVehicle').html('<i class="bi bi-check-lg me-1"></i>Guardar');
         $('#editVehicleId').val('');
         $('#vCombustible').val('gasolina');
         $('#vKm').val(0);
     }
+
+    updateFormSubmitState('vehicleForm');
 
     if (!clientProfileState.vehicleModal) {
         clientProfileState.vehicleModal = new bootstrap.Modal('#vehicleModal');
@@ -365,7 +498,7 @@ function editVehicleFromProfile(vehicleId) {
 
 async function deleteVehicleFromProfile(vehicleId) {
     vehicleId = decodeURIComponent(vehicleId);
-    confirmAction('Desea eliminar este vehiculo?', async () => {
+    confirmAction('¿Desea eliminar este vehículo?', async () => {
         try {
             const res = await fetch(`/api/vehicles/${encodeURIComponent(vehicleId)}`, {
                 method: 'DELETE',
@@ -373,13 +506,13 @@ async function deleteVehicleFromProfile(vehicleId) {
             });
             const data = await res.json();
             if (!res.ok || data.status !== 'success') {
-                showToast(data.message || 'No se pudo eliminar el vehiculo', 'error');
+                showToast(data.message || 'No se pudo eliminar el vehículo', 'error');
                 return;
             }
-            showToast(data.message || 'Vehiculo eliminado correctamente', 'success');
+            showToast(data.message || 'Vehículo eliminado correctamente', 'success');
             await loadVehicles();
         } catch (e) {
-            showToast('Error al eliminar vehiculo', 'error');
+            showToast('Error al eliminar vehículo', 'error');
         }
     }, { confirmText: 'Eliminar', confirmColor: '#F97316' });
 }
@@ -390,6 +523,7 @@ function onCarnetFileSelected() {
     if (!file) {
         $('#vCarnetFileName').text('No seleccionado');
         $('#vCarnetPreview').hide().attr('src', '');
+        updateFormSubmitState('vehicleForm');
         return;
     }
     $('#vCarnetFileName').text(file.name);
@@ -399,6 +533,7 @@ function onCarnetFileSelected() {
     };
     reader.readAsDataURL(file);
     scanVehicleTitleAndFill(file);
+    updateFormSubmitState('vehicleForm');
 }
 
 function getVehicleFormPayload() {
@@ -406,7 +541,7 @@ function getVehicleFormPayload() {
         cliente_cedula: clientProfileState.cedula,
         marca: ($('#vMarca').val() || '').trim(),
         modelo: ($('#vModelo').val() || '').trim(),
-        anio: parseInt($('#vAnio').val(), 10) || null,
+        anio: parseInt(String($('#vAnio').val() || '').trim(), 10) || null,
         placa: ($('#vPlaca').val() || '').trim(),
         color: ($('#vColor').val() || '').trim(),
         tipo_vehiculo: ($('#vTipo').val() || '').trim(),
@@ -417,18 +552,18 @@ function getVehicleFormPayload() {
 }
 
 function validateVehiclePayload(payload) {
-    if (!payload.marca || !payload.modelo) {
-        showToast('Marca y modelo son requeridos', 'error');
+    if (!payload.marca || !payload.modelo || !payload.placa) {
+        showToast('Marca, modelo y placa son requeridos', 'error');
         return false;
     }
     if (!ALLOWED_FUEL_TYPES.includes(payload.tipo_combustible)) {
-        $('#vCombustible').addClass('is-invalid');
-        $('#vCombustibleError').removeClass('d-none');
+        $('#vCombustible').addClass('is-invalid').removeClass('is-valid');
+        $('#vCombustibleError').text('Select alterado: valor no permitido').show();
         showToast('Combustible alterado: valor no permitido', 'error');
         return false;
     }
-    $('#vCombustible').removeClass('is-invalid');
-    $('#vCombustibleError').addClass('d-none');
+    $('#vCombustible').removeClass('is-invalid').addClass('is-valid');
+    $('#vCombustibleError').text('').hide();
     return true;
 }
 
@@ -466,7 +601,7 @@ async function saveVehicleFromProfile() {
                 Object.keys(data.errors).forEach(k => { mapped[fieldMap[k] || k] = data.errors[k]; });
                 Validator.showServerErrors('vehicleForm', mapped);
             }
-            showToast(data.message || 'No se pudo guardar el vehiculo', 'error');
+            showToast(data.message || 'No se pudo guardar el vehículo', 'error');
             return;
         }
 
@@ -479,11 +614,11 @@ async function saveVehicleFromProfile() {
             }
         }
 
-        showToast((data.message || 'Vehiculo registrado correctamente') + carnetMessage, 'success');
+        showToast((data.message || (vehicleId ? 'Vehículo modificado correctamente' : 'Vehículo registrado correctamente')) + carnetMessage, 'success');
         clientProfileState.vehicleModal.hide();
         await loadVehicles();
     } catch (e) {
-        showToast('Error al guardar vehiculo', 'error');
+        showToast('Error al guardar vehículo', 'error');
     } finally {
         setButtonLoading('#btnSaveVehicle', false);
     }
@@ -500,11 +635,11 @@ async function uploadVehicleCarnet(vehicleId, file) {
         });
         const data = await res.json();
         if (!res.ok || data.status !== 'success') {
-            return { ok: false, message: data.message || 'No se pudo subir el titulo' };
+            return { ok: false, message: data.message || 'No se pudo subir el título' };
         }
         return { ok: true };
     } catch (e) {
-        return { ok: false, message: 'No se pudo subir el titulo' };
+        return { ok: false, message: 'No se pudo subir el título' };
     }
 }
 
@@ -519,26 +654,28 @@ async function scanVehicleTitleAndFill(file) {
         });
         const data = await res.json();
         if (!res.ok || data.status !== 'success' || !data.data) {
-            showToast(data.message || 'No se pudo leer el documento automaticamente', 'warning');
+            showToast(data.message || 'No se pudo leer el documento automáticamente', 'warning');
             return;
         }
         applyScannedVehicleData(data.data);
-        showToast('Datos del documento cargados automaticamente', 'success');
+        showToast('Datos del documento cargados automáticamente', 'success');
     } catch (e) {
-        showToast('No se pudo procesar el documento automaticamente', 'warning');
+        showToast('No se pudo procesar el documento automáticamente', 'warning');
     }
 }
 
 function applyScannedVehicleData(parsed) {
     if (parsed.marca) $('#vMarca').val(parsed.marca);
     if (parsed.modelo) $('#vModelo').val(parsed.modelo);
-    if (parsed.anio) $('#vAnio').val(parsed.anio);
-    if (parsed.placa) $('#vPlaca').val(parsed.placa);
+    const scannedAnio = parsed.anio || parsed.ano || parsed.año || parsed.anio_vehiculo;
+    if (scannedAnio) $('#vAnio').val(scannedAnio);
+    if (parsed.placa) $('#vPlaca').val(parsed.placa.toUpperCase());
     if (parsed.color) $('#vColor').val(parsed.color);
     if (parsed.tipo_vehiculo) $('#vTipo').val(parsed.tipo_vehiculo);
     if (parsed.tipo_combustible && ALLOWED_FUEL_TYPES.includes(parsed.tipo_combustible)) {
         $('#vCombustible').val(parsed.tipo_combustible);
     }
+    Validator.validate('vehicleForm');
 }
 
 function escapeHtml(value) {

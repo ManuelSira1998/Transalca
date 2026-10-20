@@ -137,7 +137,14 @@ class VehicleModel(Connection):
         clean = {}
         clean['marca'] = require_text(errors, 'marca', data.get('marca'), 'La marca', min_len=2, max_len=100, allow_serial=False)
         clean['modelo'] = require_text(errors, 'modelo', data.get('modelo'), 'El modelo', min_len=1, max_len=100, allow_serial=False)
-        clean['anio'] = normalize_int(errors, 'anio', data.get('anio'), 'El ano', min_value=1900, max_value=2100) if data.get('anio') not in (None, '') else None
+        raw_anio = data.get('anio')
+        if raw_anio in (None, ''):
+            raw_anio = data.get('anio_vehiculo')
+        if raw_anio in (None, ''):
+            raw_anio = data.get('ano')
+        if raw_anio in (None, ''):
+            raw_anio = data.get('año')
+        clean['anio'] = normalize_int(errors, 'anio', raw_anio, 'El ano', min_value=1900, max_value=2100) if raw_anio not in (None, '') else None
         placa = require_text(errors, 'placa', data.get('placa'), 'La placa', min_len=5, max_len=20, allow_serial=True).upper()
         if placa and not re.fullmatch(r'[A-Z0-9-]+', placa):
             errors['placa'] = 'La placa solo puede contener letras, numeros y guiones.'
@@ -175,7 +182,7 @@ class VehicleModel(Connection):
                     "filtros_info, refrigerante_info, observaciones_vehiculo, titulo_vehiculo, estado) "
                     "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, 1)",
                     (self._marca, self._modelo,
-                     data.get('anio') or None, placa,
+                     clean.get('anio') or None, placa,
                      (data.get('color') or '').strip(),
                      (data.get('tipo_vehiculo') or '').strip(),
                      data.get('tipo_combustible', 'gasolina'),
@@ -186,7 +193,15 @@ class VehicleModel(Connection):
                      (data.get('observaciones') or '').strip(),
                      data.get('titulo_vehiculo') or None))
             elif existing_vehicle['estado'] == 0:
-                cursor.execute("UPDATE vehiculos SET estado = 1 WHERE placa_vehiculo = %s", (placa,))
+                cursor.execute(
+                    "UPDATE vehiculos SET marca_vehiculo=%s, modelo_vehiculo=%s, anio_vehiculo=%s, color_vehiculo=%s, "
+                    "tipo_vehiculo=%s, tipo_combustible=%s, kilometraje_actual=%s, aceite_info=%s, "
+                    "filtros_info=%s, refrigerante_info=%s, observaciones_vehiculo=%s, estado=1 WHERE placa_vehiculo=%s",
+                    (self._marca, self._modelo, clean.get('anio') or None, (data.get('color') or '').strip(),
+                     (data.get('tipo_vehiculo') or '').strip(), data.get('tipo_combustible', 'gasolina'),
+                     int(data.get('kilometraje_actual', 0)), (data.get('aceite_info') or data.get('aceite_usado') or '').strip(),
+                     (data.get('filtros_info') or '').strip(), (data.get('refrigerante_info') or '').strip(),
+                     (data.get('observaciones') or '').strip(), placa))
 
             if cliente_cedula:
                 cursor.execute(
@@ -232,7 +247,7 @@ class VehicleModel(Connection):
             "aceite_info=%s, filtros_info=%s, refrigerante_info=%s, observaciones_vehiculo=%s "
             "WHERE placa_vehiculo=%s",
             (self._marca, self._modelo,
-             data.get('anio') or None,
+             clean.get('anio') or None,
              self._placa,
              (data.get('color') or '').strip(),
              (data.get('tipo_vehiculo') or '').strip(),

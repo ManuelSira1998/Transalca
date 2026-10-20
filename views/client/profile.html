@@ -102,9 +102,9 @@
 
                 <div class="card-custom vehicle-card">
                     <div class="card-header d-flex justify-content-between align-items-center">
-                        <span><i class="bi bi-car-front me-2"></i>Mis Vehiculos</span>
+                        <span><i class="bi bi-car-front me-2"></i>Mis Vehículos</span>
                         <button type="button" class="btn btn-sm btn-orange" id="btnAddVehicle">
-                            <i class="bi bi-plus-circle me-1"></i>Agregar Vehiculo
+                            <i class="bi bi-plus-circle me-1"></i>Registrar Vehículo
                         </button>
                     </div>
                     <div class="card-body">
@@ -115,9 +115,9 @@
                                         <th>Placa</th>
                                         <th>Marca</th>
                                         <th>Modelo</th>
-                                        <th>Ano</th>
+                                        <th>Año</th>
                                         <th>Km</th>
-                                        <th>Titulo</th>
+                                        <th>Título</th>
                                         <th style="width:130px;">Acciones</th>
                                     </tr>
                                 </thead>
@@ -140,8 +140,8 @@
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="vehicleModalTitle">Agregar Vehiculo</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    <h5 class="modal-title" id="vehicleModalTitle"><i class="bi bi-car-front me-2"></i>Registrar Vehículo</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
                 </div>
                 <div class="modal-body">
                     <form id="vehicleForm">
@@ -149,55 +149,62 @@
                         <div class="row">
                             <div class="col-6 mb-3">
                                 <label class="form-label">Marca <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" id="vMarca" required>
+                                <input type="text" class="form-control" id="vMarca" name="marca" placeholder="Ej: Toyota" required>
+                                <div class="invalid-feedback"></div>
                             </div>
                             <div class="col-6 mb-3">
                                 <label class="form-label">Modelo <span class="text-danger">*</span></label>
-                                <input type="text" class="form-control" id="vModelo" required>
+                                <input type="text" class="form-control" id="vModelo" name="modelo" placeholder="Ej: Corolla" required>
+                                <div class="invalid-feedback"></div>
                             </div>
                         </div>
                         <div class="row">
                             <div class="col-4 mb-3">
-                                <label class="form-label">Ano</label>
-                                <input type="number" class="form-control" id="vAnio" min="1900" max="2100">
+                                <label class="form-label">Año</label>
+                                <input type="number" class="form-control" id="vAnio" name="anio" min="1900" max="2100" placeholder="Ej: 2022">
+                                <div class="invalid-feedback"></div>
                             </div>
                             <div class="col-4 mb-3">
-                                <label class="form-label">Placa</label>
-                                <input type="text" class="form-control" id="vPlaca">
+                                <label class="form-label">Placa <span class="text-danger">*</span></label>
+                                <input type="text" class="form-control text-uppercase" id="vPlaca" name="placa" placeholder="Ej: ABC123D" style="text-transform: uppercase;">
+                                <div class="invalid-feedback"></div>
                             </div>
                             <div class="col-4 mb-3">
                                 <label class="form-label">Color</label>
-                                <input type="text" class="form-control" id="vColor">
+                                <input type="text" class="form-control" id="vColor" name="color" placeholder="Ej: Blanco">
+                                <div class="invalid-feedback"></div>
                             </div>
                         </div>
                         <div class="row">
                             <div class="col-6 mb-3">
-                                <label class="form-label">Tipo vehiculo</label>
-                                <input type="text" class="form-control" id="vTipo">
+                                <label class="form-label">Tipo vehículo</label>
+                                <input type="text" class="form-control" id="vTipo" name="tipo_vehiculo" placeholder="Ej: Sedán, SUV...">
+                                <div class="invalid-feedback"></div>
                             </div>
                             <div class="col-6 mb-3">
                                 <label class="form-label">Combustible</label>
-                                <select class="form-select" id="vCombustible">
+                                <select class="form-select" id="vCombustible" name="tipo_combustible">
                                     <option value="gasolina">Gasolina</option>
                                     <option value="gasoil">Gasoil</option>
                                     <option value="otro">Otro</option>
                                 </select>
-                                <span class="text-danger small d-none" id="vCombustibleError">Select alterado: valor no permitido</span>
+                                <div class="invalid-feedback" id="vCombustibleError">Select alterado: valor no permitido</div>
                             </div>
                         </div>
                         <div class="mb-3">
                             <label class="form-label">Kilometraje actual</label>
-                            <input type="number" class="form-control" id="vKm" min="0" value="0">
+                            <input type="number" class="form-control" id="vKm" name="kilometraje_actual" min="0" value="0">
+                            <div class="invalid-feedback"></div>
                         </div>
                         <div class="mb-2">
-                            <label class="form-label d-block">Titulo del vehiculo</label>
+                            <label class="form-label d-block">Título del vehículo</label>
                             <input type="file" id="vCarnetFile" accept="image/*" capture="environment" class="d-none">
-                            <button type="button" class="btn btn-sm btn-outline-primary" id="btnVehicleCarnet">
-                                <i class="bi bi-upc-scan me-1"></i>Escanear/Subir titulo
+                            <button type="button" class="btn btn-sm btn-outline-orange" id="btnVehicleCarnet">
+                                <i class="bi bi-upc-scan me-1"></i>Escanear/Subir título
                             </button>
                             <span class="small text-muted ms-2" id="vCarnetFileName">No seleccionado</span>
                             <div class="mt-2">
-                                <img id="vCarnetPreview" src="" alt="Preview titulo"
+                                <img id="vCarnetPreview" src="" alt="Preview título"
                                     style="display:none;width:100%;max-height:170px;object-fit:contain;border:1px solid #ddd;border-radius:8px;padding:4px;">
                             </div>
                         </div>
@@ -205,7 +212,7 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                    <button type="button" class="btn btn-orange" id="btnSaveVehicle">Guardar Vehiculo</button>
+                    <button type="button" class="btn btn-orange" id="btnSaveVehicle" disabled><i class="bi bi-check-lg me-1"></i>Guardar</button>
                 </div>
             </div>
         </div>

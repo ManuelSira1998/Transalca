@@ -42,7 +42,7 @@ class AuthModel(Connection):
 
     def _login(self, email, password):
         user = self.fetch_one("mantenimiento",
-            "SELECT * FROM usuarios WHERE email = %s AND estado = 1", (email,))
+            "SELECT * FROM usuarios WHERE email = %s", (email,))
         if user and check_password_hash(user['password_hash'], password):
             return user
         return None

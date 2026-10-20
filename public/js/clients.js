@@ -141,7 +141,7 @@ function showDetail(cedula) {
                 vhtml += `<tr>
                     <td><strong>${v.placa || '—'}</strong></td>
                     <td>${v.marca}</td><td>${v.modelo}</td>
-                    <td>${v.anio || '—'}</td>
+                    <td>${v.anio || v.anio_vehiculo || '—'}</td>
                     <td>${(v.kilometraje_actual || 0).toLocaleString()}</td>
                     <td>${v.tipo_combustible || '—'}</td>
                     <td>
@@ -316,7 +316,7 @@ function showVehicleModal(vehicleData) {
         $('#editVehicleId').val(vehicleData.placa || vehicleData.id);
         $('#vMarca').val(vehicleData.marca);
         $('#vModelo').val(vehicleData.modelo);
-        $('#vAnio').val(vehicleData.anio);
+        $('#vAnio').val(vehicleData.anio || vehicleData.anio_vehiculo || '');
         $('#vPlaca').val(vehicleData.placa);
         $('#vColor').val(vehicleData.color);
         $('#vTipo').val(vehicleData.tipo_vehiculo);
@@ -325,6 +325,9 @@ function showVehicleModal(vehicleData) {
     } else {
         $('#vehicleModalTitle').text('Registrar Vehículo');
         $('#editVehicleId').val('');
+        $('#vAnio').val('');
+        $('#vCombustible').val('gasolina');
+        $('#vKm').val(0);
     }
     if (window.jQuery?.fn?.select2) window.jQuery('#vCombustible').trigger('change');
     new bootstrap.Modal('#vehicleModal').show();
@@ -363,7 +366,7 @@ function saveVehicle() {
     const data = {
         marca: $('#vMarca').val(),
         modelo: $('#vModelo').val(),
-        anio: parseInt($('#vAnio').val()) || null,
+        anio: parseInt(String($('#vAnio').val() || '').trim(), 10) || null,
         placa: $('#vPlaca').val(),
         color: $('#vColor').val(),
         tipo_vehiculo: $('#vTipo').val(),
@@ -535,7 +538,8 @@ function scanVehicleTitleAndFillAdmin(file) {
             const d = r.data;
             if (d.marca) $('#vMarca').val(d.marca);
             if (d.modelo) $('#vModelo').val(d.modelo);
-            if (d.anio) $('#vAnio').val(d.anio);
+            const scannedAnio = d.anio || d.ano || d.año || d.anio_vehiculo;
+            if (scannedAnio) $('#vAnio').val(scannedAnio);
             if (d.placa) $('#vPlaca').val(d.placa);
             if (d.color) $('#vColor').val(d.color);
             if (d.tipo_vehiculo) $('#vTipo').val(d.tipo_vehiculo);

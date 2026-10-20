@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify, session
 from model.vehicle_model import VehicleModel
-from controller._guards import can_access_client, deny, is_employee, require_login
+from controller._guards import can_access_client, deny, is_client, is_employee, require_login
 from model.vehicle_title_ocr_model import OCRError, parse_vehicle_title_image
 from config.validation import ValidationError
 import os

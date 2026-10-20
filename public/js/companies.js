@@ -284,9 +284,9 @@ function renderFleet(items) {
         $('#fleetList').html('<p class="text-muted text-center py-3">Sin vehículos registrados</p>');
         return;
     }
-    let html = '<div class="table-responsive"><table class="table table-sm"><thead><tr><th>Placa</th><th>Marca</th><th>Modelo</th><th>Ano</th><th>Km</th><th>Acciones</th></tr></thead><tbody>';
+    let html = '<div class="table-responsive"><table class="table table-sm"><thead><tr><th>Placa</th><th>Marca</th><th>Modelo</th><th>Año</th><th>Km</th><th>Acciones</th></tr></thead><tbody>';
     items.forEach(v => {
-        html += `<tr><td><strong>${escapeHtml(v.placa || '-')}</strong></td><td>${escapeHtml(v.marca || '')}</td><td>${escapeHtml(v.modelo || '')}</td><td>${escapeHtml(v.anio || '-')}</td><td>${Number(v.kilometraje_actual || 0).toLocaleString()}</td><td><button class="btn btn-sm btn-warning me-1" onclick="editFleetVehicle('${encodeURIComponent(v.placa || '')}')" title="Modificar vehiculo"><i class="bi bi-pencil-square"></i></button><button class="btn btn-sm btn-danger" onclick="deleteFleetVehicle('${encodeURIComponent(v.placa || '')}')" title="Eliminar vehiculo"><i class="bi bi-trash"></i></button></td></tr>`;
+        html += `<tr><td><strong>${escapeHtml(v.placa || '-')}</strong></td><td>${escapeHtml(v.marca || '')}</td><td>${escapeHtml(v.modelo || '')}</td><td>${escapeHtml(v.anio || v.anio_vehiculo || '-')}</td><td>${Number(v.kilometraje_actual || 0).toLocaleString()}</td><td><button class="btn btn-sm btn-warning me-1" onclick="editFleetVehicle('${encodeURIComponent(v.placa || '')}')" title="Modificar vehiculo"><i class="bi bi-pencil-square"></i></button><button class="btn btn-sm btn-danger" onclick="deleteFleetVehicle('${encodeURIComponent(v.placa || '')}')" title="Eliminar vehiculo"><i class="bi bi-trash"></i></button></td></tr>`;
     });
     html += '</tbody></table></div>';
     $('#fleetList').html(html);
@@ -315,7 +315,7 @@ function showFleetModal(vehicle) {
         $('#editVehicleId').val(vehicle.placa || vehicle.id);
         $('#vMarca').val(vehicle.marca);
         $('#vModelo').val(vehicle.modelo);
-        $('#vAnio').val(vehicle.anio);
+        $('#vAnio').val(vehicle.anio || vehicle.anio_vehiculo || '');
         $('#vPlaca').val(vehicle.placa);
         $('#vColor').val(vehicle.color);
         $('#vTipo').val(vehicle.tipo_vehiculo);
@@ -351,7 +351,7 @@ function fleetPayload() {
     const payload = {
         marca: $('#vMarca').val(),
         modelo: $('#vModelo').val(),
-        anio: parseInt($('#vAnio').val()) || null,
+        anio: parseInt(String($('#vAnio').val() || '').trim(), 10) || null,
         placa: $('#vPlaca').val(),
         color: $('#vColor').val(),
         tipo_vehiculo: $('#vTipo').val(),
