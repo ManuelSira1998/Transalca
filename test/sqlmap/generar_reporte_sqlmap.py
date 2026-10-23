@@ -1,7 +1,3 @@
-"""
-Generador de Informe de Pruebas SQLi en formato .docx
-Sistema: Transalca
-"""
 from docx import Document
 from docx.shared import Pt, Cm, RGBColor
 from docx.enum.table import WD_TABLE_ALIGNMENT
@@ -64,7 +60,6 @@ def generate_report():
     style.font.name = 'Calibri'
     style.font.size = Pt(11)
 
-    # ===== PORTADA =====
     for _ in range(4):
         doc.add_paragraph('')
     p = doc.add_paragraph()
@@ -108,7 +103,6 @@ def generate_report():
         run.font.size = Pt(11)
     doc.add_page_break()
 
-    # ===== INDICE =====
     h = doc.add_heading('Indice', level=1)
     h.runs[0].font.color.rgb = RGBColor(26, 54, 93)
     indice = [
@@ -158,7 +152,6 @@ def generate_report():
         p.runs[0].font.size = Pt(11)
     doc.add_page_break()
 
-    # ===== 1. RESUMEN EJECUTIVO =====
     h = doc.add_heading('1. Resumen Ejecutivo', level=1)
     h.runs[0].font.color.rgb = RGBColor(26, 54, 93)
     doc.add_paragraph(
@@ -181,7 +174,6 @@ def generate_report():
                      'Ningun parametro resulto inyectable.')
     doc.add_paragraph('')
 
-    # ===== 2. METODOLOGIA =====
     h = doc.add_heading('2. Metodologia de Pruebas', level=1)
     h.runs[0].font.color.rgb = RGBColor(26, 54, 93)
     metodologia = [
@@ -200,7 +192,6 @@ def generate_report():
         p.add_run(desc)
     doc.add_paragraph('')
 
-    # ===== 3. PARAMETROS SQLMAP =====
     h = doc.add_heading('3. Parametros de SQLmap', level=1)
     h.runs[0].font.color.rgb = RGBColor(26, 54, 93)
     add_styled_table(doc,
@@ -217,7 +208,6 @@ def generate_report():
     )
     doc.add_page_break()
 
-    # ===== 4. RESULTADOS CONSOLIDADOS =====
     h = doc.add_heading('4. Resultados Consolidados', level=1)
     h.runs[0].font.color.rgb = RGBColor(26, 54, 93)
     doc.add_paragraph(
@@ -283,7 +273,6 @@ def generate_report():
     )
     doc.add_page_break()
 
-    # ===== 5. DETALLE POR MODULO =====
     h = doc.add_heading('5. Detalle por Modulo', level=1)
     h.runs[0].font.color.rgb = RGBColor(26, 54, 93)
 
@@ -394,7 +383,6 @@ def generate_report():
 
     doc.add_page_break()
 
-    # ===== 6. HALLAZGOS Y RECOMENDACIONES =====
     h = doc.add_heading('6. Hallazgos y Recomendaciones', level=1)
     h.runs[0].font.color.rgb = RGBColor(26, 54, 93)
 
@@ -462,7 +450,6 @@ def generate_report():
         doc.add_paragraph(rec, style='List Bullet')
     doc.add_paragraph('')
 
-    # ===== 7. CONCLUSION =====
     h = doc.add_heading('7. Conclusion', level=1)
     h.runs[0].font.color.rgb = RGBColor(26, 54, 93)
     doc.add_paragraph(
@@ -483,7 +470,6 @@ def generate_report():
     )
     run.italic = True
 
-    # --- Guardar ---
     output_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                'Informe_Pruebas_SQLi_Transalca.docx')
     doc.save(output_path)

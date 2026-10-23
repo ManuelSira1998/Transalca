@@ -2,12 +2,10 @@ import os
 import re
 import requests
 
-# ── Configuración ──
 LOGIN_URL = "http://127.0.0.1:5000/auth/do_login"
 LOGIN_DATA = {"email": "admin@transalca.com", "password": "Admin123!"}
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 
-# ── 1. Hacer login y obtener cookie ──
 print("[*] Iniciando sesion...")
 resp = requests.post(LOGIN_URL, json=LOGIN_DATA)
 cookie = resp.cookies.get("session")
@@ -19,7 +17,6 @@ if not cookie:
 
 print(f"[OK] Cookie obtenida: {cookie[:40]}...")
 
-# ── 2. Actualizar todos los archivos .txt ──
 updated = []
 skipped = []
 
